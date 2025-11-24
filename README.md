@@ -65,20 +65,20 @@ SpeedUp 是一款轻量级的用户脚本（Userscript），让你在浏览网�
 本项目基于 [MIT License](LICENSE) 开源，欢迎 Fork、贡献或反馈问题。
 
 ```
-MIT © echowav
+MIT © withcong
 ```
 
 ---
 
 ## 📬 反馈与建议
 
-如果你遇到问题或有新功能建议，欢迎在 [Issues](https://github.com/echowav/speedup/issues) 中提出！
+如果你遇到问题或有新功能建议，欢迎在 [Issues](https://github.com/withcong/speedup/issues) 中提出！
 
 也欢迎提交 PR 优化代码或增加功能。
 
 ---
 
-🔧 由 [echowav](https://github.com/echowav) 开发维护 | [GitHub 仓库](https://github.com/echowav/speedup)
+🔧 由 [withcong](https://github.com/withcong) 开发维护 | [GitHub 仓库](https://github.com/withcong/speedup)
 
 ---
 
