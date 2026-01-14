@@ -11,6 +11,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "icons": "bash scripts/generate-icons.sh",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "postinstall": "wxt prepare"
   },

@@ -17,6 +17,11 @@ npm run build:firefox    # Build for Firefox
 npm run zip              # Create zip for distribution
 ```
 
+### Icons
+```bash
+npm run icons            # Generate extension icons (requires rsvg-convert)
+```
+
 ### Type Checking
 ```bash
 npm run check            # Run svelte-check for type errors
