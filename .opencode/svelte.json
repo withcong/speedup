@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sveltejs/mcp/refs/heads/main/packages/opencode/schema.json",
+  "plugin": ["@sveltejs/opencode"],
+  "mcp": {
+    "type": "remote",
+    "enabled": true
+  },
+  "subagent": {
+    "enabled": true
+  },
+  "instructions": {
+    "enabled": true
+  }
+}
