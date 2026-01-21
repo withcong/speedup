@@ -3,7 +3,9 @@ import type { Config } from '~/types';
 
 interface LongPressOptions {
   onStart?: (event: Event) => void;
-  onHold?: ((event: Event, state: { duration: number; triggered: boolean }) => void) | null;
+  onHold?:
+    | ((event: Event, state: { duration: number; triggered: boolean }) => void)
+    | null;
   onLongPress?: (event: Event) => void;
   onClick?: (event: Event) => void;
   onRelease?: (event: Event) => void;
@@ -30,8 +32,7 @@ export default defineContentScript({
             policy = trustedTypes.createPolicy('escape', {
               createHTML: (s: string) => s,
             });
-          } catch {
-          }
+          } catch {}
         }
       }
       return policy;
@@ -44,7 +45,7 @@ export default defineContentScript({
     function useLongPress(
       target: Element | string,
       options: LongPressOptions = {},
-    ): (() => void) {
+    ): () => void {
       const {
         onStart = () => {},
         onHold = null,
@@ -125,7 +126,11 @@ export default defineContentScript({
         }
       };
 
-      const addEvent = (target: EventTarget, type: string, handler: (e: Event) => void) => {
+      const addEvent = (
+        target: EventTarget,
+        type: string,
+        handler: (e: Event) => void,
+      ) => {
         target.addEventListener(type, handler, { capture });
         return () => target.removeEventListener(type, handler, { capture });
       };
@@ -185,6 +190,7 @@ export default defineContentScript({
     let video: HTMLVideoElement | null = null;
     let isSpeedUp = false;
     let speedIndicator: HTMLElement | null = null;
+    let shadowHost: HTMLElement | null = null;
     let config: Config = {
       enabled: true,
       longPressDuration: 500,
@@ -196,6 +202,20 @@ export default defineContentScript({
     function createSpeedIndicator() {
       if (speedIndicator) return;
 
+      shadowHost = document.createElement('div');
+      shadowHost.id = 'speedup-indicator-host';
+      shadowHost.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: calc(infinity);
+        pointer-events: none;
+        display: none;
+        transform: translateX(-50%);
+      `;
+
+      const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
       speedIndicator = document.createElement('div');
       speedIndicator.innerHTML = trustedHTMLFromString(`
         <span id="speed-text">2x</span>
@@ -206,10 +226,6 @@ export default defineContentScript({
       `);
 
       speedIndicator.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
         color: #fffe;
         height: 40px;
         box-sizing: border-box;
@@ -217,16 +233,11 @@ export default defineContentScript({
         border-radius: 25px;
         font-size: 18px;
         font-weight: bold;
-        z-index: 9999;
-        display: none;
-        pointer-events: none;
-
         -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         background-color: rgba(255, 255, 255, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.2);
         box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-
         display: flex;
         align-items: center;
         gap: 8px;
@@ -258,7 +269,8 @@ export default defineContentScript({
         }
       `;
 
-      speedIndicator.prepend(style);
+      shadowRoot.appendChild(style);
+      shadowRoot.appendChild(speedIndicator);
     }
 
     function showSpeedIndicator() {
@@ -268,14 +280,14 @@ export default defineContentScript({
         createSpeedIndicator();
       }
 
-      if (speedIndicator && !speedIndicator.parentNode) {
-        video.parentNode?.appendChild(speedIndicator);
+      if (shadowHost && !shadowHost.parentNode) {
+        video.parentNode?.appendChild(shadowHost);
       }
 
       updateIndicatorText();
       updateIndicatorPosition();
-      if (speedIndicator) {
-        speedIndicator.style.display = 'flex';
+      if (shadowHost) {
+        shadowHost.style.display = 'block';
       }
     }
 
@@ -288,18 +300,18 @@ export default defineContentScript({
     }
 
     function updateIndicatorPosition() {
-      if (!speedIndicator || !video) return;
+      if (!shadowHost || !video) return;
 
       const videoRect = video.getBoundingClientRect();
 
       const leftOffset = videoRect.left + videoRect.width / 2;
-      speedIndicator.style.left = `${leftOffset}px`;
-      speedIndicator.style.top = `${videoRect.top + 20}px`;
+      shadowHost.style.left = `${leftOffset}px`;
+      shadowHost.style.top = `${videoRect.top + 20}px`;
     }
 
     function hideSpeedIndicator() {
-      if (speedIndicator) {
-        speedIndicator.style.display = 'none';
+      if (shadowHost) {
+        shadowHost.style.display = 'none';
       }
     }
 
