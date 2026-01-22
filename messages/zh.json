@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "app_name": "SpeedUp",
+  "status_running": "运行中",
+  "status_paused": "已暂停",
+  "turbo_speed": "加速速度",
+  "normal_speed": "正常速度",
+  "long_press_delay": "长按延迟",
+  "hint_long_press": "长按 <kbd>空格</kbd> 加速播放"
+}

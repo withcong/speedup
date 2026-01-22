@@ -3,6 +3,8 @@
   import { fade, fly, scale } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
   import type { Config } from '~/types';
+  import { m } from '~/paraglide/messages.js';
+  import * as runtime from '~/paraglide/runtime.js';
 
   let config = $state<Config>({
     enabled: true,
@@ -13,10 +15,19 @@
 
   let mounted = $state(false);
 
+  function detectLocale() {
+    const browserLang = navigator.language;
+    if (browserLang.startsWith('zh')) {
+      return 'zh';
+    }
+    return 'en';
+  }
+
   onMount(async () => {
     try {
       const result = await browser.storage.local.get(Object.keys(config));
       config = { ...config, ...result } as Config;
+      runtime.setLocale(detectLocale());
     } catch (error) {
       console.error('Failed to load config:', error);
     } finally {
@@ -46,12 +57,12 @@
           in:scale={{ duration: 600, delay: 200, start: 0.8, easing: backOut }}
         >
           <div class="logo">
-            <img src="/icon.svg" alt="SpeedUp" />
+            <img src="/icon.svg" alt={m.app_name()} />
           </div>
           <div class="title-group">
-            <h1>SpeedUp</h1>
+            <h1>{m.app_name()}</h1>
             <span class="status-tag" class:active={config.enabled}>
-              {config.enabled ? 'Running' : 'Paused'}
+              {config.enabled ? m.status_running() : m.status_paused()}
             </span>
           </div>
         </div>
@@ -74,21 +85,25 @@
         <div class="card">
           <section>
             <div class="section-header">
-              <span class="label">Long Press Delay</span>
-              <span class="value"
-                >{config.longPressDuration}<small>ms</small></span
-              >
+              <span class="label">{m.turbo_speed()}</span>
+              <span class="value">{config.fastSpeed}x</span>
             </div>
-            <div class="slider-wrapper">
-              <input
-                type="range"
-                min="200"
-                max="1000"
-                step="50"
-                bind:value={config.longPressDuration}
-                onchange={() =>
-                  updateConfig({ longPressDuration: config.longPressDuration })}
-              />
+            <div class="presets">
+              <div
+                class="pill"
+                style:width="calc(100% / {fastSpeedOptions.length})"
+                style:transform="translateX({fastSpeedOptions.indexOf(
+                  config.fastSpeed,
+                ) * 100}%)"
+              ></div>
+              {#each fastSpeedOptions as speed}
+                <button
+                  class:active={config.fastSpeed === speed}
+                  onclick={() => updateConfig({ fastSpeed: speed })}
+                >
+                  {speed}
+                </button>
+              {/each}
             </div>
           </section>
         </div>
@@ -96,7 +111,7 @@
         <div class="card">
           <section>
             <div class="section-header">
-              <span class="label">Normal Speed</span>
+              <span class="label">{m.normal_speed()}</span>
               <span class="value">{config.defaultSpeed}x</span>
             </div>
             <div class="presets">
@@ -104,7 +119,7 @@
                 class="pill"
                 style:width="calc(100% / {defaultSpeedOptions.length})"
                 style:transform="translateX({defaultSpeedOptions.indexOf(
-                  config.defaultSpeed
+                  config.defaultSpeed,
                 ) * 100}%)"
               ></div>
               {#each defaultSpeedOptions as speed}
@@ -122,25 +137,21 @@
         <div class="card">
           <section>
             <div class="section-header">
-              <span class="label">Turbo Speed</span>
-              <span class="value">{config.fastSpeed}x</span>
+              <span class="label">{m.long_press_delay()}</span>
+              <span class="value"
+                >{config.longPressDuration}<small>ms</small></span
+              >
             </div>
-            <div class="presets">
-              <div
-                class="pill"
-                style:width="calc(100% / {fastSpeedOptions.length})"
-                style:transform="translateX({fastSpeedOptions.indexOf(
-                  config.fastSpeed
-                ) * 100}%)"
-              ></div>
-              {#each fastSpeedOptions as speed}
-                <button
-                  class:active={config.fastSpeed === speed}
-                  onclick={() => updateConfig({ fastSpeed: speed })}
-                >
-                  {speed}
-                </button>
-              {/each}
+            <div class="slider-wrapper">
+              <input
+                type="range"
+                min="200"
+                max="1000"
+                step="50"
+                bind:value={config.longPressDuration}
+                onchange={() =>
+                  updateConfig({ longPressDuration: config.longPressDuration })}
+              />
             </div>
           </section>
         </div>
@@ -148,7 +159,7 @@
 
       <footer in:fade={{ delay: 600 }}>
         <div class="hint">
-          Long press <kbd>Space</kbd> to Turbo
+          {@html m.hint_long_press()}
         </div>
       </footer>
     </div>
@@ -385,6 +396,8 @@
 
   input[type='range'] {
     -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
     width: 100%;
     height: 5px;
     background: #f3f4f6;
@@ -394,6 +407,7 @@
 
   input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 18px;
     height: 18px;
     background: white;
@@ -424,7 +438,7 @@
     color: #6b7280;
   }
 
-  kbd {
+  :global(kbd) {
     background: white;
     border: 1px solid #e5e7eb;
     border-radius: 4px;

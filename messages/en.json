@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "app_name": "SpeedUp",
+  "status_running": "Running",
+  "status_paused": "Paused",
+  "turbo_speed": "Turbo Speed",
+  "normal_speed": "Normal Speed",
+  "long_press_delay": "Long Press Delay",
+  "hint_long_press": "Long press <kbd>Space</kbd> to Turbo"
+}
