@@ -17,8 +17,18 @@ interface LongPressOptions {
   disabled?: (event: Event) => boolean;
 }
 
+type SpaceAction = 'start' | 'longpress' | 'release' | 'click';
+
+interface SpaceSyncMessage {
+  type: 'speedup-space-sync';
+  messageId: string;
+  sourceFrameId: string;
+  action: SpaceAction;
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
+  allFrames: true,
   main() {
     let policy: any;
 
@@ -198,6 +208,9 @@ export default defineContentScript({
       fastSpeed: 2.0,
     };
     let longPressCleanup: (() => void) | null = null;
+    const frameId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const MESSAGE_TYPE: SpaceSyncMessage['type'] = 'speedup-space-sync';
+    const handledMessageIds = new Set<string>();
 
     function createSpeedIndicator() {
       if (speedIndicator) return;
@@ -315,8 +328,32 @@ export default defineContentScript({
       }
     }
 
-    function findVideo(): HTMLVideoElement | null {
-      return document.querySelector('video');
+    function findVideo(root: Document | ShadowRoot = document): HTMLVideoElement | null {
+      const video = root.querySelector('video')
+      if (video) return video
+
+      const allElements = root.querySelectorAll('*')
+      for (const el of allElements) {
+        if (el.shadowRoot) {
+          const videoInShadow = findVideo(el.shadowRoot)
+          if (videoInShadow) return videoInShadow
+        }
+      }
+
+      if (root === document) {
+        for (const frame of document.querySelectorAll('iframe')) {
+          try {
+            const frameDoc = frame.contentDocument
+            if (frameDoc) {
+              const videoInFrame = findVideo(frameDoc)
+              if (videoInFrame) return videoInFrame
+            }
+          } catch (e) {
+          }
+        }
+      }
+
+      return null
     }
 
     function restoreNormalSpeed() {
@@ -382,6 +419,98 @@ export default defineContentScript({
       }
     }
 
+    function isSpaceSyncMessage(data: unknown): data is SpaceSyncMessage {
+      if (!data || typeof data !== 'object') return false;
+      const message = data as Partial<SpaceSyncMessage>;
+      return (
+        message.type === MESSAGE_TYPE &&
+        typeof message.messageId === 'string' &&
+        typeof message.sourceFrameId === 'string' &&
+        (message.action === 'start' ||
+          message.action === 'longpress' ||
+          message.action === 'release' ||
+          message.action === 'click')
+      );
+    }
+
+    function markMessageHandled(messageId: string) {
+      handledMessageIds.add(messageId);
+      if (handledMessageIds.size > 200) {
+        const first = handledMessageIds.values().next().value as
+          | string
+          | undefined;
+        if (first) {
+          handledMessageIds.delete(first);
+        }
+      }
+    }
+
+    function postToChildFrames(message: SpaceSyncMessage) {
+      const frames = document.querySelectorAll('iframe');
+      for (const frame of frames) {
+        frame.contentWindow?.postMessage(message, '*');
+      }
+    }
+
+    function applySpaceAction(action: SpaceAction) {
+      if (!config.enabled) return;
+
+      if (action === 'start') {
+        video = findVideo();
+        return;
+      }
+
+      if (action === 'longpress') {
+        speedUp();
+        return;
+      }
+
+      if (action === 'release') {
+        restoreNormalSpeed();
+        return;
+      }
+
+      togglePlayPause();
+    }
+
+    function broadcastSpaceAction(action: SpaceAction) {
+      const message: SpaceSyncMessage = {
+        type: MESSAGE_TYPE,
+        messageId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        sourceFrameId: frameId,
+        action,
+      };
+
+      markMessageHandled(message.messageId);
+
+      if (window === window.top) {
+        postToChildFrames(message);
+        return;
+      }
+
+      window.top?.postMessage(message, '*');
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!isSpaceSyncMessage(event.data)) return;
+
+      const message = event.data;
+      if (message.sourceFrameId === frameId) return;
+      if (handledMessageIds.has(message.messageId)) return;
+
+      markMessageHandled(message.messageId);
+      applySpaceAction(message.action);
+
+      if (window === window.top) {
+        postToChildFrames(message);
+        return;
+      }
+
+      if (event.source === window.top) {
+        postToChildFrames(message);
+      }
+    });
+
     const isInputArea = (e: Event) => {
       const target = e.target as HTMLElement;
       return (
@@ -400,18 +529,22 @@ export default defineContentScript({
         onStart: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          video = findVideo();
+          applySpaceAction('start');
+          broadcastSpaceAction('start');
         },
         onLongPress: () => {
-          speedUp();
+          applySpaceAction('longpress');
+          broadcastSpaceAction('longpress');
         },
         onRelease: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          restoreNormalSpeed();
+          applySpaceAction('release');
+          broadcastSpaceAction('release');
         },
         onClick: () => {
-          togglePlayPause();
+          applySpaceAction('click');
+          broadcastSpaceAction('click');
         },
         disabled: (e) => {
           return !config.enabled || isInputArea(e);
